@@ -49,7 +49,7 @@ FluxSR includes a web-based training queue system for managing multiple experime
 pip install fastapi uvicorn
 
 # Start the queue server
-python -m fluxsr.queue.server
+python -m fluxsr.task_queue.server
 
 # Open http://localhost:8899 in your browser
 ```

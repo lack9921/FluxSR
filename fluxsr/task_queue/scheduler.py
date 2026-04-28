@@ -11,7 +11,7 @@ from typing import Optional
 from .database import Database
 from .models import Task
 
-logger = logging.getLogger("fluxsr.queue.scheduler")
+logger = logging.getLogger("fluxsr.task_queue.scheduler")
 
 POLL_INTERVAL = 5  # seconds
 
