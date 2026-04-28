@@ -77,7 +77,7 @@ FluxSR/
 │   ├── metrics/      # Evaluation metrics
 │   ├── models/       # Training/validation models
 │   ├── ops/          # Custom operations
-│   ├── queue/        # Training queue system (Web UI + scheduler)
+│   ├── task_queue/   # Training queue system (Web UI + scheduler)
 │   └── utils/        # Utilities & helpers
 ├── options/          # Config files
 ├── scripts/          # Utility scripts
