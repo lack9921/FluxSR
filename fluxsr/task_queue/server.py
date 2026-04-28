@@ -1,7 +1,7 @@
 """FluxSR Queue Web Server.
 
 Usage:
-    python -m fluxsr.queue.server --port 8899 --db queue.db
+    python -m fluxsr.task_queue.server --port 8899 --db queue.db
 
 This starts the FastAPI web server with:
   - REST API for task CRUD
@@ -10,6 +10,7 @@ This starts the FastAPI web server with:
 """
 
 import argparse
+import asyncio
 import logging
 import os
 import sys
@@ -18,23 +19,29 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .database import Database
 from .models import Task, _new_id, _now_iso
 from .scheduler import Scheduler
 
-logger = logging.getLogger("fluxsr.queue.server")
+logger = logging.getLogger("fluxsr.task_queue.server")
 
-app = FastAPI(title="FluxSR Training Queue")
+async def lifespan(application):
+    global _scheduler
+    if _db is not None:
+        _scheduler = Scheduler(_db, project_root=str(Path.cwd()))
+        await _scheduler.start()
+    yield
+    if _scheduler:
+        await _scheduler.stop()
+
+
+app = FastAPI(title="FluxSR Training Queue", lifespan=lifespan)
 
 # ---- Global state (set during startup) ----
 _db: Database = None
 _scheduler: Scheduler = None
-
-
-# ===================== Request/Response Models =====================
 
 
 class CreateTaskRequest(BaseModel):
@@ -61,7 +68,7 @@ class ReorderRequest(BaseModel):
 
 
 @app.get("/api/tasks")
-def list_tasks(status: str = Query(None, regex="^(queued|running|completed|failed|cancelled)?$")):
+def list_tasks(status: str = Query(None, pattern="^(queued|running|completed|failed|cancelled)?$")):
     tasks = _db.list_tasks(status=status)
     stats = _db.get_stats()
     return {
@@ -76,12 +83,10 @@ def list_tasks(status: str = Query(None, regex="^(queued|running|completed|faile
 
 @app.post("/api/tasks", status_code=201)
 def create_task(req: CreateTaskRequest):
-    # Validate config_path exists
     full_path = Path(req.config_path)
     cwd = Path.cwd()
     config_file = cwd / req.config_path if not full_path.is_absolute() else full_path
     if not config_file.exists():
-        # Try relative to project root
         config_file = cwd / req.config_path
         if not config_file.exists():
             raise HTTPException(400, f"Config file not found: {req.config_path}")
@@ -111,11 +116,9 @@ def update_task(task_id: str, req: UpdateTaskRequest):
     task = _db.get_task(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
-
     updates = {k: v for k, v in req.model_dump(exclude_none=True).items()}
     if not updates:
         return task.to_dict()
-
     task = _db.update_task(task_id, **updates)
     return task.to_dict()
 
@@ -135,13 +138,10 @@ def cancel_task(task_id: str):
         raise HTTPException(404, "Task not found")
     if task.status not in ("running", "queued"):
         raise HTTPException(400, f"Cannot cancel task with status: {task.status}")
-
     if task.status == "queued":
         _db.update_task(task_id, status="cancelled", finished_at=_now_iso())
     else:
-        # scheduler will pick up the cancellation
         _db.update_task(task_id, status="cancelled")
-
     return {"ok": True}
 
 
@@ -152,11 +152,10 @@ def retry_task(task_id: str):
         raise HTTPException(404, "Task not found")
     if task.status not in ("failed", "cancelled"):
         raise HTTPException(400, f"Cannot retry task with status: {task.status}")
-
     _db.update_task(
         task_id,
         status="queued",
-        priority=max(0, task.priority - 1),  # retry gets slightly higher priority
+        priority=max(0, task.priority - 1),
         started_at=None,
         finished_at=None,
         exit_code=None,
@@ -183,7 +182,6 @@ def get_task_log(task_id: str):
         raise HTTPException(404, "Task not found")
     if not task.log_path or not os.path.exists(task.log_path):
         return PlainTextResponse("(no log file yet)")
-
     try:
         with open(task.log_path, "r", errors="replace") as f:
             content = f.read()
@@ -192,60 +190,8 @@ def get_task_log(task_id: str):
         return PlainTextResponse(f"(error reading log: {e})")
 
 
-# ===================== Web Dashboard =====================
+# ===================== Web Dashboard & Startup =====================
 
-
-@app.get("/", response_class=HTMLResponse)
-def dashboard():
-    return HTMLResponse(_DASHBOARD_HTML)
-
-
-# ===================== Startup / Shutdown =====================
-
-
-@app.on_event("startup")
-async def startup():
-    global _scheduler
-    if _db is None:
-        logger.error("Database not initialized. Use run() to start the server.")
-        return
-    _scheduler = Scheduler(_db, project_root=str(Path.cwd()))
-    await _scheduler.start()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    if _scheduler:
-        await _scheduler.stop()
-
-
-# ===================== Entry Point =====================
-
-
-def run():
-    parser = argparse.ArgumentParser(description="FluxSR Training Queue Server")
-    parser.add_argument("--port", type=int, default=8899, help="Server port (default: 8899)")
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
-    parser.add_argument("--db", type=str, default="queue.db", help="SQLite database path (default: queue.db)")
-    parser.add_argument("--log-level", type=str, default="info", choices=["debug", "info", "warning", "error"])
-    args = parser.parse_args()
-
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper()),
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-    )
-
-    global _db
-    _db = Database(args.db)
-
-    logger.info("FluxSR Queue Server starting on http://%s:%d", args.host, args.port)
-    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
-
-
-if __name__ == "__main__":
-    run()
-
-# ===================== Inline Dashboard HTML =====================
 
 _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
@@ -582,3 +528,37 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     </script>
 </body>
 </html>"""
+
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard():
+    return HTMLResponse(_DASHBOARD_HTML)
+
+
+
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+def run():
+    parser = argparse.ArgumentParser(description="FluxSR Training Queue Server")
+    parser.add_argument("--port", type=int, default=8899, help="Server port (default: 8899)")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
+    parser.add_argument("--db", type=str, default="queue.db", help="SQLite database path (default: queue.db)")
+    parser.add_argument("--log-level", type=str, default="info", choices=["debug", "info", "warning", "error"])
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper()),
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    )
+
+    global _db
+    _db = Database(args.db)
+
+    logger.info("FluxSR Queue Server starting on http://%s:%d", args.host, args.port)
+    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
+
+
+if __name__ == "__main__":
+    run()

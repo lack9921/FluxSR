@@ -11,7 +11,7 @@ from typing import Optional
 from .database import Database
 from .models import Task
 
-logger = logging.getLogger("fluxsr.queue.scheduler")
+logger = logging.getLogger("fluxsr.task_queue.scheduler")
 
 POLL_INTERVAL = 5  # seconds
 
@@ -36,10 +36,11 @@ def _build_command(task: Task) -> list[str]:
         args_list = _parse_override_args(task.override_args)
         cmd.extend(args_list)
 
-    # Add auto-generated experiment name if --name not already specified
-    if "--name" not in task.override_args:
+    # Add auto-generated experiment name via --override
+    # (train.py doesn't have a --name arg; we override the config via --override)
+    if "--name" not in task.override_args and "name" not in task.override_args:
         exp_name = _generate_experiment_name(task)
-        cmd.extend(["--name", exp_name])
+        cmd.append(f"--override=name={exp_name}")
 
     return cmd
 

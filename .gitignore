@@ -131,6 +131,11 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# Queue database
+queue.db
+queue.db-wal
+queue.db-shm
+
 # test binary data
 tests/data/*.mdb
 tests/data/*.lock
