@@ -1,7 +1,7 @@
 """FluxSR Queue Web Server.
 
 Usage:
-    python -m fluxsr.queue.server --port 8899 --db queue.db
+    python -m fluxsr.task_queue.server --port 8899 --db queue.db
 
 This starts the FastAPI web server with:
   - REST API for task CRUD
@@ -25,7 +25,7 @@ from .database import Database
 from .models import Task, _new_id, _now_iso
 from .scheduler import Scheduler
 
-logger = logging.getLogger("fluxsr.queue.server")
+logger = logging.getLogger("fluxsr.task_queue.server")
 
 async def lifespan(application):
     global _scheduler
