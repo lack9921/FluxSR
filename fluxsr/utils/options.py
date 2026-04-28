@@ -105,6 +105,9 @@ def parse_options(root_path, is_train=True):
     parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument(
         '--force_yml', nargs='+', default=None, help='Force to update yml files. Examples: train:ema_decay=0.999')
+    parser.add_argument(
+        '--override', action='append', default=[],
+        help='Override config values. Examples: --override name=my_exp --override train.lr=1e-4')
     args = parser.parse_args()
 
     # parse yml to dict
@@ -142,6 +145,30 @@ def parse_options(root_path, is_train=True):
             eval_str += '=value'
             # using exec function
             exec(eval_str)
+
+    # apply --override key=value
+    for entry in args.override:
+        if '=' not in entry:
+            continue
+        keys_str, raw_value = entry.split('=', 1)
+        keys_str = keys_str.strip()
+        raw_value = raw_value.strip()
+
+        # Parse value as YAML literal (handles numbers, booleans, etc.)
+        import yaml
+        try:
+            value = yaml.safe_load(raw_value)
+        except Exception:
+            value = raw_value
+
+        # Navigate/set nested keys using dot notation
+        keys = keys_str.split('.')
+        target = opt
+        for k in keys[:-1]:
+            if k not in target:
+                target[k] = {}
+            target = target[k]
+        target[keys[-1]] = value
 
     opt['auto_resume'] = args.auto_resume
     opt['is_train'] = is_train
