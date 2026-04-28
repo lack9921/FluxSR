@@ -195,57 +195,8 @@ def get_task_log(task_id: str):
 # ===================== Web Dashboard =====================
 
 
-@app.get("/", response_class=HTMLResponse)
-def dashboard():
-    return HTMLResponse(_DASHBOARD_HTML)
 
-
-# ===================== Startup / Shutdown =====================
-
-
-@app.on_event("startup")
-async def startup():
-    global _scheduler
-    if _db is None:
-        logger.error("Database not initialized. Use run() to start the server.")
-        return
-    _scheduler = Scheduler(_db, project_root=str(Path.cwd()))
-    await _scheduler.start()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    if _scheduler:
-        await _scheduler.stop()
-
-
-# ===================== Entry Point =====================
-
-
-def run():
-    parser = argparse.ArgumentParser(description="FluxSR Training Queue Server")
-    parser.add_argument("--port", type=int, default=8899, help="Server port (default: 8899)")
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
-    parser.add_argument("--db", type=str, default="queue.db", help="SQLite database path (default: queue.db)")
-    parser.add_argument("--log-level", type=str, default="info", choices=["debug", "info", "warning", "error"])
-    args = parser.parse_args()
-
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper()),
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-    )
-
-    global _db
-    _db = Database(args.db)
-
-    logger.info("FluxSR Queue Server starting on http://%s:%d", args.host, args.port)
-    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
-
-
-if __name__ == "__main__":
-    run()
-
-# ===================== Inline Dashboard HTML =====================
+# ===================== Web Dashboard =====================
 
 _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
@@ -582,3 +533,10 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     </script>
 </body>
 </html>"""
+
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard():
+    return HTMLResponse(_DASHBOARD_HTML)
+
+

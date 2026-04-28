@@ -11,6 +11,7 @@ FluxSR is an evolution of BasicSR — preserving its solid foundation while reth
 - **Familiar Workflow**: Train, test, and inference pipelines inherited from BasicSR — minimal learning curve
 - **Extended Capabilities**: Built-in support for attention-based architectures (SwinIR, etc.)
 - **Production-Ready**: Comprehensive training scripts, loss functions, and metric evaluations
+- **Training Queue**: Web-based queue manager for batch experiment submission and monitoring
 
 ## 🚀 Quick Start
 
@@ -39,6 +40,28 @@ bash scripts/dist_train.sh 8 /path/to/config
 python fluxsr/test.py -opt options/test/test_SRGAN.yml
 ```
 
+### Training Queue
+
+FluxSR includes a web-based training queue system for managing multiple experiments:
+
+```bash
+# Install queue dependencies
+pip install fastapi uvicorn
+
+# Start the queue server
+python -m fluxsr.queue.server
+
+# Open http://localhost:8899 in your browser
+```
+
+Features:
+- Submit, reorder, and monitor training tasks from a web dashboard
+- Auto-generated experiment names with timestamps
+- Dynamic config overrides via `--override key=value`
+- Failed task retry with one click
+
+See [Training Queue Documentation](docs/queue.md) for details.
+
 ## 📚 Documentation
 
 Coming soon. For now, BasicSR documentation applies with `basicsr` → `fluxsr`.
@@ -54,6 +77,7 @@ FluxSR/
 │   ├── metrics/      # Evaluation metrics
 │   ├── models/       # Training/validation models
 │   ├── ops/          # Custom operations
+│   ├── queue/        # Training queue system (Web UI + scheduler)
 │   └── utils/        # Utilities & helpers
 ├── options/          # Config files
 ├── scripts/          # Utility scripts
