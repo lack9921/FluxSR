@@ -88,9 +88,34 @@ def load_resume_state(opt):
     return resume_state
 
 
+def _apply_overrides(opt):
+    """Apply --override key=value arguments to the opt dict."""
+    import argparse
+    _p = argparse.ArgumentParser(add_help=False)
+    _p.add_argument("--override", action="append", default=[])
+    _overrides, _ = _p.parse_known_args()
+
+    for _kv in _overrides.override:
+        if "=" not in _kv:
+            continue
+        _key, _value = _kv.split("=", 1)
+        _keys = _key.split(".")
+        _target = opt
+        for _k in _keys[:-1]:
+            if _k not in _target:
+                _target[_k] = {}
+            _target = _target[_k]
+        import yaml
+        try:
+            _target[_keys[-1]] = yaml.safe_load(_value)
+        except Exception:
+            _target[_keys[-1]] = _value
+
+
 def train_pipeline(root_path):
     # parse options, set distributed setting, set random seed
     opt, args = parse_options(root_path, is_train=True)
+    _apply_overrides(opt)
     opt['root_path'] = root_path
 
     torch.backends.cudnn.benchmark = True
