@@ -1,0 +1,6 @@
+include fluxsr/ops/dcn/src/*.cu fluxsr/ops/dcn/src/*.cpp
+include fluxsr/ops/fused_act/src/*.cu fluxsr/ops/fused_act/src/*.cpp
+include fluxsr/ops/upfirdn2d/src/*.cu fluxsr/ops/upfirdn2d/src/*.cpp
+include fluxsr/metrics/niqe_pris_params.npz
+include VERSION
+include requirements.txt
