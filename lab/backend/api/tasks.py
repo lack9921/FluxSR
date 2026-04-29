@@ -10,7 +10,7 @@ if _lab_dir not in sys.path:
 
 import asyncio
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 
@@ -36,20 +36,20 @@ class UpdateTaskReq(BaseModel):
     status: Optional[str] = None
 
 
-def _get_db() -> Database:
-    from backend.main import app
-    return app.state.db
+from fastapi import Depends
+
+
+def get_db(request: Request) -> Database:
+    return request.app.state.db
 
 
 @router.get("")
-def list_tasks(status: Optional[str] = None):
-    db = _get_db()
+def list_tasks(status: Optional[str] = None, db: Database = Depends(get_db)):
     return {"tasks": db.list_tasks(status=status), "stats": db.get_stats()}
 
 
 @router.post("")
-def create_task(req: CreateTaskReq):
-    db = _get_db()
+def create_task(req: CreateTaskReq, db: Database = Depends(get_db)):
     if not os.path.isfile(req.config_path):
         raise HTTPException(400, f"Config file not found: {req.config_path}")
     task = Task(name=req.name, config_path=req.config_path,
@@ -60,8 +60,7 @@ def create_task(req: CreateTaskReq):
 
 
 @router.get("/{task_id}")
-def get_task(task_id: str):
-    db = _get_db()
+def get_task(task_id: str, db: Database = Depends(get_db)):
     task = db.get_task(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
@@ -69,8 +68,7 @@ def get_task(task_id: str):
 
 
 @router.post("/{task_id}/cancel")
-def cancel_task(task_id: str):
-    db = _get_db()
+def cancel_task(task_id: str, db: Database = Depends(get_db)):
     task = db.get_task(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
@@ -81,8 +79,7 @@ def cancel_task(task_id: str):
 
 
 @router.delete("/{task_id}")
-def delete_task(task_id: str):
-    db = _get_db()
+def delete_task(task_id: str, db: Database = Depends(get_db)):
     ok = db.delete_task(task_id)
     if not ok:
         raise HTTPException(400, "Task cannot be deleted (maybe running)")
@@ -90,9 +87,8 @@ def delete_task(task_id: str):
 
 
 @router.get("/{task_id}/log")
-async def stream_log(task_id: str, tail: int = 100):
+async def stream_log(task_id: str, tail: int = 100, db: Database = Depends(get_db)):
     """返回任务日志尾部"""
-    db = _get_db()
     task = db.get_task(task_id)
     if not task or not task.log_path:
         raise HTTPException(404, "No log")
