@@ -139,3 +139,6 @@ queue.db-shm
 # test binary data
 tests/data/*.mdb
 tests/data/*.lock
+lab/frontend/node_modules/
+lab/frontend/dist/
+lab/frontend/package-lock.json
