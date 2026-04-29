@@ -13,7 +13,6 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
 
-from backend.core.tb_reader import get_scalar_data
 
 router = APIRouter(prefix="/api/configs", tags=["configs"])
 
