@@ -1,0 +1,8 @@
+# FluxSR Lab — 后端依赖
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0
+sqlite-utils>=3.0
+tensorboard>=2.15
+pyyaml>=6.0
+watchfiles>=0.21  # 文件监听
