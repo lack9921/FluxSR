@@ -11,7 +11,6 @@ FluxSR is an evolution of BasicSR — preserving its solid foundation while reth
 - **Familiar Workflow**: Train, test, and inference pipelines inherited from BasicSR — minimal learning curve
 - **Extended Capabilities**: Built-in support for attention-based architectures (SwinIR, etc.)
 - **Production-Ready**: Comprehensive training scripts, loss functions, and metric evaluations
-- **Training Queue**: Web-based queue manager for batch experiment submission and monitoring
 
 ## 🚀 Quick Start
 
@@ -40,27 +39,46 @@ bash scripts/dist_train.sh 8 /path/to/config
 python fluxsr/test.py -opt options/test/test_SRGAN.yml
 ```
 
-### Training Queue
+## 🧪 FluxSR Lab
 
-FluxSR includes a web-based training queue system for managing multiple experiments:
+A full-stack training management panel for BasicSR experiments. Provides a modern web UI for task queuing, experiment monitoring, config generation, and file management.
 
-```bash
-# Install queue dependencies
-pip install fastapi uvicorn
-
-# Start the queue server
-python -m fluxsr.task_queue.server
-
-# Open http://localhost:8899 in your browser
+```
+lab/
+├── backend/          FastAPI backend (20 REST endpoints)
+└── frontend/         React + TypeScript + Ant Design UI
 ```
 
-Features:
-- Submit, reorder, and monitor training tasks from a web dashboard
-- Auto-generated experiment names with timestamps
-- Dynamic config overrides via `--override key=value`
-- Failed task retry with one click
+### Getting Started
 
-See [Training Queue Documentation](docs/queue.md) for details.
+```bash
+# 1. Build the frontend
+cd lab/frontend
+npm install && npm run build
+
+# 2. Start the backend (serves both API and frontend on port 8899)
+cd lab/backend
+pip install -r requirements.txt
+python main.py
+
+# 3. Open http://localhost:8899 in your browser
+```
+
+### Pages
+
+| Page | Description |
+|------|-------------|
+| **Dashboard** | Queue stats, recent experiments overview |
+| **Training Queue** | Submit/cancel/delete training tasks, view real-time logs |
+| **Training Monitor** | ECharts curves from TensorBoard data (loss, PSNR, SSIM, LR) |
+| **Config Editor** | Form-based YAML config generation for BasicSR |
+| **File Explorer** | Browse experiment artifacts (checkpoints, logs, validation images) |
+
+### Usage Tips
+
+- The Lab runs independently from FluxSR core — no code coupling, just subprocess + filesystem access
+- VS Code Remote SSH users: start the backend on the server, forward port 8899 to your local browser
+- Point `FLUXSR_EXP_ROOT` environment variable to your experiments directory if it's not at the default path
 
 ## 📚 Documentation
 
@@ -77,8 +95,10 @@ FluxSR/
 │   ├── metrics/      # Evaluation metrics
 │   ├── models/       # Training/validation models
 │   ├── ops/          # Custom operations
-│   ├── task_queue/   # Training queue system (Web UI + scheduler)
 │   └── utils/        # Utilities & helpers
+├── lab/              # FluxSR Lab — training management panel
+│   ├── backend/      # FastAPI backend
+│   └── frontend/     # React frontend
 ├── options/          # Config files
 ├── scripts/          # Utility scripts
 ├── tests/            # Unit tests
