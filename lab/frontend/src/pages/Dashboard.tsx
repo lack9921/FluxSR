@@ -12,14 +12,21 @@ const Dashboard: React.FC = () => {
     fetchExperiments().then(d => setRecentExps(d.experiments.slice(-5).reverse()));
   }, []);
 
+  const statusTag = (status: string | undefined) => {
+    const s = status || 'unknown';
+    const colors: Record<string, string> = { running: 'processing', completed: 'success', stopped: 'warning', unknown: 'default' };
+    const labels: Record<string, string> = { running: '运行中', completed: '已完成', stopped: '已停止', unknown: '未知' };
+    return <Tag color={colors[s]}>{labels[s]}</Tag>;
+  };
+
   const expColumns = [
     { title: '实验名', dataIndex: 'name', key: 'name' },
     {
-      title: '状态', dataIndex: 'is_running', key: 'status',
-      render: (v: boolean) => v ? <Tag color="processing">运行中</Tag> : <Tag>已完成</Tag>,
+      title: '状态', dataIndex: 'status', key: 'status',
+      render: (v: string) => statusTag(v),
     },
-    { title: '迭代', dataIndex: 'max_iter', key: 'max_iter', render: (v: number) => v ? v.toLocaleString() : '-' },
     { title: '检查点', dataIndex: 'checkpoints', key: 'ckpts', render: (v: any[]) => v?.length || 0 },
+    { title: '日志行', dataIndex: 'log_lines', key: 'log', render: (v: number) => v ? v.toLocaleString() : '-' },
     { title: '修改时间', dataIndex: 'mtime', key: 'mtime' },
   ];
 

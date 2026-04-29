@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Tag, Space, Input, Drawer, Image, Descriptions, message } from 'antd';
+import { Table, Button, Tag, Space, Input, Drawer, Image, message } from 'antd';
 import { ReloadOutlined, FolderOpenOutlined, EyeOutlined } from '@ant-design/icons';
 import { fetchExperiments, fetchExpConfig, fetchExpLog, Experiment } from '../api';
 
@@ -41,15 +41,28 @@ const FileExplorer: React.FC = () => {
     setDrawerOpen(true);
   };
 
+  const statusTag = (status: string | undefined) => {
+    const s = status || 'unknown';
+    const colors: Record<string, string> = { running: 'blue', completed: 'green', stopped: 'orange', unknown: 'default' };
+    const labels: Record<string, string> = { running: '运行中', completed: '已完成', stopped: '已停止', unknown: '未知' };
+    return <Tag color={colors[s] || 'default'}>{labels[s] || s}</Tag>;
+  };
+
   const columns = [
-    { title: '实验名', dataIndex: 'name', key: 'name', width: 250 },
-    { title: '迭代', dataIndex: 'max_iter', key: 'iter', width: 100, render: (v: number) => v ? v.toLocaleString() : '-' },
-    { title: '检查点', key: 'ckpts', width: 80, render: (_: any, r: Experiment) => r.checkpoints?.length || 0 },
-    { title: '图像', key: 'imgs', width: 80, render: (_: any, r: Experiment) => r.images?.length || 0 },
-    { title: '日志行', dataIndex: 'log_lines', key: 'log', width: 80 },
+    { title: '状态', key: 'status', width: 70, render: (_: any, r: Experiment) => statusTag(r.status) },
+    { title: '实验名', dataIndex: 'name', key: 'name', width: 280, ellipsis: true },
+    { title: '检查点', key: 'ckpts', width: 70, render: (_: any, r: Experiment) => r.checkpoints?.length || 0 },
+    { title: '图像', key: 'imgs', width: 70, render: (_: any, r: Experiment) => r.images?.length || 0 },
+    { title: '日志行', dataIndex: 'log_lines', key: 'log', width: 70 },
+    { title: '指标', key: 'metrics', width: 90, render: (_: any, r: Experiment) => (
+      <Space size={4}>
+        {r.has_psnr && <Tag color="green">PSNR</Tag>}
+        {r.has_ssim && <Tag color="red">SSIM</Tag>}
+      </Space>
+    )},
     { title: '修改时间', dataIndex: 'mtime', key: 'mtime', width: 150 },
     {
-      title: '操作', key: 'action', width: 160,
+      title: '操作', key: 'action', width: 180,
       render: (_: any, r: Experiment) => (
         <Space>
           <Button size="small" icon={<EyeOutlined />} onClick={() => showConfig(r)}>配置</Button>

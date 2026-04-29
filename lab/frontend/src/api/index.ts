@@ -61,12 +61,13 @@ export interface ExpImage {
 
 export interface Experiment {
   name: string;
+  status: string;
   has_config: boolean;
   has_log: boolean;
-  has_tb: boolean;
+  has_psnr: boolean;
+  has_ssim: boolean;
+  val_dataset?: string;
   log_lines: number;
-  max_iter: number;
-  is_running: boolean;
   mtime: string;
   checkpoints: Checkpoint[];
   images: ExpImage[];
@@ -89,12 +90,15 @@ export const fetchExpLog = (name: string, tail = 100, root?: string) =>
 // ── 训练监控 ──
 
 export interface MetricPoint {
-  step: number;
+  iter: number;
   value: number;
 }
 
 export const fetchMetrics = (name: string, tag: string) =>
   api.get<{ tag: string; data: MetricPoint[] }>(`/experiments/${name}/metrics`, { params: { tag } }).then(r => r.data);
+
+export const fetchAllMetrics = (name: string) =>
+  api.get<{ metrics: Record<string, MetricPoint[]>; info: any }>(`/experiments/${name}/all-metrics`).then(r => r.data);
 
 export const fetchTags = (name: string) =>
   api.get<{ tags: string[] }>(`/experiments/${name}/tags`).then(r => r.data);
