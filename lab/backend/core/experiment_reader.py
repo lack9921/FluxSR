@@ -81,16 +81,12 @@ def scan_experiments(exp_root: str) -> list[dict]:
             if m:
                 max_iter = max(max_iter, int(m.group(1)))
 
-        # 是否运行中（15分钟内更新过）
-        is_running = (datetime.now().timestamp() - os.path.getmtime(exp_dir)) < 900
-
         experiments.append({
             "name": name,
             "has_config": has_config,
             "has_log": has_log,
             "log_lines": log_lines,
             "max_iter": max_iter,
-            "is_running": is_running,
             "mtime": datetime.fromtimestamp(os.path.getmtime(exp_dir)).strftime("%Y-%m-%d %H:%M"),
             "checkpoints": checkpoints,
             "state_files": state_files,

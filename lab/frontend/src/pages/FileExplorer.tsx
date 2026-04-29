@@ -43,10 +43,6 @@ const FileExplorer: React.FC = () => {
 
   const columns = [
     { title: '实验名', dataIndex: 'name', key: 'name', width: 250 },
-    {
-      title: '状态', key: 'status', width: 80,
-      render: (_: any, r: Experiment) => r.is_running ? <Tag color="processing">运行中</Tag> : <Tag>已停止</Tag>,
-    },
     { title: '迭代', dataIndex: 'max_iter', key: 'iter', width: 100, render: (v: number) => v ? v.toLocaleString() : '-' },
     { title: '检查点', key: 'ckpts', width: 80, render: (_: any, r: Experiment) => r.checkpoints?.length || 0 },
     { title: '图像', key: 'imgs', width: 80, render: (_: any, r: Experiment) => r.images?.length || 0 },
