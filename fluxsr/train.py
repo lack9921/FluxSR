@@ -19,6 +19,19 @@ def init_tb_loggers(opt):
     if (opt['logger'].get('wandb') is not None) and (opt['logger']['wandb'].get('project')
                                                      is not None) and ('debug' not in opt['name']):
         assert opt['logger'].get('use_tb_logger') is True, ('should turn on tensorboard when using wandb')
+        try:
+            init_wandb_logger(opt)
+        except Exception as e:
+            logger = get_root_logger()
+            logger.warning(f'wandb initialization failed (skip): {e}')
+    tb_logger = None
+    if opt['logger'].get('use_tb_logger') and 'debug' not in opt['name']:
+        tb_logger = init_tb_logger(log_dir=osp.join(opt['root_path'], 'tb_logger', opt['name']))
+    return tb_logger
+    # initialize wandb logger before tensorboard logger to allow proper sync
+    if (opt['logger'].get('wandb') is not None) and (opt['logger']['wandb'].get('project')
+                                                     is not None) and ('debug' not in opt['name']):
+        assert opt['logger'].get('use_tb_logger') is True, ('should turn on tensorboard when using wandb')
         init_wandb_logger(opt)
     tb_logger = None
     if opt['logger'].get('use_tb_logger') and 'debug' not in opt['name']:
