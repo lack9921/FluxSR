@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Tag, Modal, Form, Input, InputNumber, message, Space, Drawer, Descriptions } from 'antd';
+import { Table, Button, Tag, Modal, Form, Input, InputNumber, Select, message, Space, Drawer, Descriptions } from 'antd';
 import { PlusOutlined, StopOutlined, DeleteOutlined, ReloadOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons';
 import { fetchTasks, createTask, cancelTask, deleteTask, fetchTaskLog, Task, TaskStats } from '../api';
+import axios from 'axios';
 
 const statusMap: Record<string, { color: string; text: string }> = {
   queued: { color: 'processing', text: '排队中' },
@@ -19,7 +20,15 @@ const TaskQueue: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logContent, setLogContent] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [configOptions, setConfigOptions] = useState<{ path: string; name: string; relative: string }[]>([]);
   const [form] = Form.useForm();
+
+  const loadConfigs = async () => {
+    try {
+      const res = await axios.get('/api/experiments/options/list');
+      setConfigOptions(res.data.configs || []);
+    } catch { /* ignore */ }
+  };
 
   const load = () => {
     setLoading(true);
@@ -96,13 +105,23 @@ const TaskQueue: React.FC = () => {
 
       <Table dataSource={tasks} columns={columns} rowKey="id" loading={loading} size="small" pagination={{ pageSize: 20 }} />
 
-      <Modal title="提交新任务" open={modalOpen} onOk={handleSubmit} onCancel={() => setModalOpen(false)} destroyOnClose>
+      <Modal title="提交新任务" open={modalOpen} onOk={handleSubmit} onCancel={() => {
+        setModalOpen(false);
+        loadConfigs();
+      }} destroyOnClose afterOpenChange={(open) => { if (open) loadConfigs(); }}>
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="任务名称" rules={[{ required: true }]}>
             <Input placeholder="my_experiment" />
           </Form.Item>
-          <Form.Item name="config_path" label="配置文件路径" rules={[{ required: true }]}>
-            <Input placeholder="experiments/xxx/train.yml" />
+          <Form.Item name="config_path" label="配置文件" rules={[{ required: true }]}>
+            <Select placeholder="选择训练的 YAML 配置"
+              showSearch
+              optionFilterProp="label"
+              options={configOptions.map(c => ({
+                label: c.relative,
+                value: c.path,
+              }))}
+            />
           </Form.Item>
           <Form.Item name="override_args" label="额外参数">
             <Input placeholder="batch_size=8 lr=1e-4" />

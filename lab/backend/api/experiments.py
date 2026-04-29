@@ -83,4 +83,27 @@ def get_image(exp_name: str, path: str, root: Optional[str] = Query(None)):
     raise HTTPException(404)
 
 
+import glob
+
+
+@router.get("/options/list")
+def list_options(root: Optional[str] = Query(None)):
+    """扫描 options/train/ 目录下的所有 YAML 配置文件"""
+    proj_root = root or os.path.dirname(EXPERIMENTS_ROOT)
+    options_dir = os.path.join(proj_root, "options", "train")
+    if not os.path.isdir(options_dir):
+        return {"configs": []}
+
+    configs = []
+    for f in sorted(glob.glob(os.path.join(options_dir, "**", "*.yml"), recursive=True)):
+        rel = os.path.relpath(f, proj_root)
+        configs.append({
+            "path": f,
+            "relative": rel,
+            "name": os.path.splitext(os.path.basename(f))[0],
+            "mtime": os.path.getmtime(f),
+        })
+    return {"configs": configs}
+
+
 from fastapi import HTTPException
