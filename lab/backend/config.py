@@ -36,4 +36,4 @@ DB_PATH = os.environ.get(
 
 # 服务配置
 HOST = "0.0.0.0"
-PORT = 8899
+PORT = 8833
