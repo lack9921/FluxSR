@@ -18,21 +18,36 @@ from backend.core.tb_reader import (
     parse_training_log, get_metric_columns
 )
 from backend.config import EXPERIMENTS_ROOT
+from backend.core.db import Database
+from backend.config import DB_PATH
 
 router = APIRouter(prefix="/api/experiments", tags=["experiments"])
+
+
+def _get_running_names() -> set[str]:
+    """从任务队列查询当前正在 running 的任务名"""
+    try:
+        db = Database(DB_PATH)
+        tasks = db.list_tasks(status="running")
+        db.close()
+        return {t["name"] for t in tasks}
+    except Exception:
+        return set()
 
 
 @router.get("")
 def list_experiments(root: Optional[str] = Query(None)):
     exp_root = root or EXPERIMENTS_ROOT
-    exps = scan_experiments(exp_root)
+    running_names = _get_running_names()
+    exps = scan_experiments(exp_root, running_names=running_names)
     return {"experiments": exps, "root": exp_root}
 
 
 @router.get("/{exp_name}")
 def get_experiment(exp_name: str, root: Optional[str] = Query(None)):
     exp_root = root or EXPERIMENTS_ROOT
-    exps = scan_experiments(exp_root)
+    running_names = _get_running_names()
+    exps = scan_experiments(exp_root, running_names=running_names)
     for e in exps:
         if e["name"] == exp_name:
             # 加上可用指标

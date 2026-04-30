@@ -47,11 +47,14 @@ def _find_config_file(exp_dir: str, exp_name: str) -> Optional[str]:
     return None
 
 
-def scan_experiments(exp_root: str) -> list[dict]:
-    """扫描实验目录"""
+def scan_experiments(exp_root: str, running_names: Optional[set[str]] = None) -> list[dict]:
+    """扫描实验目录
+    running_names: 当前正在运行的任务名集合（用于标记 is_running）
+    """
     if not os.path.isdir(exp_root):
         return []
 
+    running_names = running_names or set()
     experiments = []
     for exp_dir in sorted(glob.glob(os.path.join(exp_root, "*/"))):
         name = os.path.basename(os.path.normpath(exp_dir))
@@ -63,7 +66,6 @@ def scan_experiments(exp_root: str) -> list[dict]:
         log_path = _find_log_file(exp_dir, name)
         config_path = _find_config_file(exp_dir, name)
         models_dir = os.path.join(exp_dir, "models")
-        vis_dir = os.path.join(exp_dir, "visualization")
         states_dir = os.path.join(exp_dir, "training_states")
 
         has_log = log_path is not None
@@ -94,32 +96,31 @@ def scan_experiments(exp_root: str) -> list[dict]:
                     "size_mb": round(stat.st_size / 1024 / 1024, 1),
                 })
 
-        # 验证结果图
-        images = []
-        if os.path.isdir(vis_dir):
-            for img in sorted(
-                glob.glob(os.path.join(vis_dir, "**", "*.png"), recursive=True) +
-                glob.glob(os.path.join(vis_dir, "**", "*.jpg"), recursive=True)
-            ):
-                rel = os.path.relpath(img, vis_dir)
-                images.append({"name": rel, "path": img})
-
-        # 日志行数和状态
+        # 日志行数
         log_lines = 0
-        status = "unknown"
         if has_log:
             try:
                 with open(log_path) as f:
-                    content = f.read()
-                    log_lines = content.count('\n')
-                    if "End of training" in content:
-                        status = "completed"
-                    elif "Saving models and training states" in content:
-                        status = "running"
-                    elif content.strip():
-                        status = "stopped"
+                    log_lines = sum(1 for _ in f)
             except Exception:
                 pass
+
+        # 状态判定（优先级）：
+        #   1. 任务队列 running -> "running"
+        #   2. 日志有 End of training -> "completed"
+        #   3. 有产出物（日志/检查点）但不是 completed -> "stopped"
+        #   4. 啥都没有 -> "unknown"
+        status = "running" if name in running_names else "unknown"
+        if status != "running" and log_lines > 0:
+            try:
+                with open(log_path) as f:
+                    content = f.read()
+                if "End of training" in content:
+                    status = "completed"
+                else:
+                    status = "stopped"
+            except Exception:
+                status = "unknown"
 
         # 验证指标（从日志尾部快速扫描）
         has_psnr = has_ssim = False
@@ -133,6 +134,13 @@ def scan_experiments(exp_root: str) -> list[dict]:
                             has_ssim = True
             except Exception:
                 pass
+
+        # 最大迭代（从检查点文件名中提取）
+        max_iter = 0
+        for ckpt in checkpoints:
+            m = re.search(r'(\d+)', ckpt["name"])
+            if m:
+                max_iter = max(max_iter, int(m.group(1)))
 
         # Val 数据集名称
         val_dataset = ""
@@ -156,10 +164,11 @@ def scan_experiments(exp_root: str) -> list[dict]:
             "has_psnr": has_psnr,
             "has_ssim": has_ssim,
             "val_dataset": val_dataset,
+            "max_iter": max_iter,
+            "is_running": name in running_names,
             "mtime": datetime.fromtimestamp(os.path.getmtime(exp_dir)).strftime("%Y-%m-%d %H:%M"),
             "checkpoints": checkpoints,
             "state_files": state_files,
-            "images": images,
             "config_path": config_path if has_config else None,
             "log_path": log_path,
         })

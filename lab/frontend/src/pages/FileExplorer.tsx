@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Tag, Space, Input, Drawer, Image, message } from 'antd';
+import { Table, Button, Tag, Space, Input, Drawer, message } from 'antd';
 import { ReloadOutlined, FolderOpenOutlined, EyeOutlined } from '@ant-design/icons';
 import { fetchExperiments, fetchExpConfig, fetchExpLog, Experiment } from '../api';
 
@@ -11,6 +11,9 @@ const FileExplorer: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerExp, setDrawerExp] = useState<Experiment | null>(null);
   const [drawerContent, setDrawerContent] = useState('');
+
+  // 当前使用的根目录（用于传递给配置/日志接口）
+  const currentRoot = expRoot;
 
   const load = async (root?: string) => {
     setLoading(true);
@@ -26,7 +29,7 @@ const FileExplorer: React.FC = () => {
   const showConfig = async (exp: Experiment) => {
     setDrawerExp(exp);
     try {
-      const d = await fetchExpConfig(exp.name);
+      const d = await fetchExpConfig(exp.name, currentRoot);
       setDrawerContent(d.content || '(无配置文件)');
     } catch { setDrawerContent('(读取失败)'); }
     setDrawerOpen(true);
@@ -35,24 +38,26 @@ const FileExplorer: React.FC = () => {
   const showLog = async (exp: Experiment) => {
     setDrawerExp(exp);
     try {
-      const d = await fetchExpLog(exp.name, 200);
+      const d = await fetchExpLog(exp.name, 200, currentRoot);
       setDrawerContent(d.log || '(无日志)');
     } catch { setDrawerContent('(读取失败)'); }
     setDrawerOpen(true);
   };
 
-  const statusTag = (status: string | undefined) => {
-    const s = status || 'unknown';
-    const colors: Record<string, string> = { running: 'blue', completed: 'green', stopped: 'orange', unknown: 'default' };
-    const labels: Record<string, string> = { running: '运行中', completed: '已完成', stopped: '已停止', unknown: '未知' };
-    return <Tag color={colors[s] || 'default'}>{labels[s] || s}</Tag>;
+  const getStatusDisplay = (r: Experiment) => {
+    // 第一优先级：任务队列
+    if (r.is_running) return <Tag color="processing">运行中</Tag>;
+    // 第二优先级：日志解析结果
+    if (r.status === "completed") return <Tag color="success">已完成</Tag>;
+    if (r.status === "stopped") return <Tag color="error">已停止 / 中断</Tag>;
+    // 第三优先级：没跑过
+    return <Tag color="default">等待训练</Tag>;
   };
 
   const columns = [
-    { title: '状态', key: 'status', width: 70, render: (_: any, r: Experiment) => statusTag(r.status) },
+    { title: '状态', key: 'status', width: 90, render: (_: any, r: Experiment) => getStatusDisplay(r) },
     { title: '实验名', dataIndex: 'name', key: 'name', width: 280, ellipsis: true },
     { title: '检查点', key: 'ckpts', width: 70, render: (_: any, r: Experiment) => r.checkpoints?.length || 0 },
-    { title: '图像', key: 'imgs', width: 70, render: (_: any, r: Experiment) => r.images?.length || 0 },
     { title: '日志行', dataIndex: 'log_lines', key: 'log', width: 70 },
     { title: '指标', key: 'metrics', width: 90, render: (_: any, r: Experiment) => (
       <Space size={4}>
@@ -82,17 +87,6 @@ const FileExplorer: React.FC = () => {
           { title: '修改时间', dataIndex: 'mtime', key: 'mtime' },
         ]} rowKey="name" pagination={false} size="small" />
       ) : <span style={{ color: '#888' }}>无检查点</span>}
-      <h4 style={{ marginTop: 12 }}>验证结果</h4>
-      {exp.images && exp.images.length > 0 ? (
-        <Image.PreviewGroup>
-          <Space wrap>
-            {exp.images.slice(0, 10).map(img => (
-              <Image key={img.path} src={`/api/experiments/${exp.name}/image?path=${encodeURIComponent(img.path)}`}
-                width={120} preview={{ mask: '查看' }} />
-            ))}
-          </Space>
-        </Image.PreviewGroup>
-      ) : <span style={{ color: '#888' }}>无结果图</span>}
     </div>
   );
 

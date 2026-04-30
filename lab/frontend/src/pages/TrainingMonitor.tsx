@@ -152,7 +152,7 @@ const TrainingMonitor: React.FC = () => {
               (option?.label as string || '').toLowerCase().includes(input.toLowerCase())
             }
             options={exps.map(e => ({
-              label: `${e.name}${e.status === 'running' ? ' 🔄' : e.status === 'completed' ? ' ✅' : ''}`,
+              label: `${e.name}${e.is_running ? ' 🔄' : e.status === 'completed' ? ' ✅' : e.status === 'stopped' ? ' ⛔' : ''}`,
               value: e.name,
             }))}
           />

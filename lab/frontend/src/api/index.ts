@@ -54,9 +54,15 @@ export interface Checkpoint {
   mtime: string;
 }
 
-export interface ExpImage {
+export interface Checkpoint {
   name: string;
-  path: string;
+  size_mb: number;
+  mtime: string;
+}
+
+export interface StateFile {
+  name: string;
+  size_mb: number;
 }
 
 export interface Experiment {
@@ -68,9 +74,11 @@ export interface Experiment {
   has_ssim: boolean;
   val_dataset?: string;
   log_lines: number;
+  max_iter: number;
+  is_running: boolean;
   mtime: string;
   checkpoints: Checkpoint[];
-  images: ExpImage[];
+  state_files: StateFile[];
   config_path?: string;
   log_path?: string;
 }
